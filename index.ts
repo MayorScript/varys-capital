@@ -3,38 +3,28 @@ import express, { Request, Response } from "express";
 const app = express();
 const parser = require("@solidity-parser/parser");
 
-let codeInput: string = `
-    import "VarysContractBase.sol";
-    import "VarysContractExtras.sol";
-    contract VarysContract {
-  mapping (uint => address) public addresses;
-}
-`;
+var multer = require("multer");
+var upload = multer();
 
-app.get("/analyze", (req:Request,res:Response) => {
+app.use(express.json()); //Used to parse JSON bodies
+app.use(express.urlencoded()); //Parse URL-encoded bodies
+app.use(upload.array()); // Used to parse multipart/formdata
+app.use(express.static("public"));
+
+app.post("/analyze", (req:Request,res:Response) => {
+  const {solidityCode} = req.body;
     try {
-      const parsedCode = parser.parse(codeInput);
-      let importResult = parsedCode.children.map((child: any) => {
-        //   if(child.type == "ImportDirective"){ 
-        //       const result = child.path.filter((element: string) => {
-        //           return element !== null;
-        //       });
-        //       return result;
-        //     }
-          if(child.type == "ImportDirective"){ 
-              const result = child.path;           
-              return result;
-            }
-      });
-      let contractResult = parsedCode.children.map((child: any) => {
-        //   if(child.type == "ContractDefinition"){
-        //       const result = child.name.filter((element: string) => {
-        //           return element !== null;
-        //       });
-        //       return result;
-        //     }
-        if (child.type == "ContractDefinition") {
-          return child.name;
+      const parsedCode = parser.parse(solidityCode);
+        let importResult: any = [];
+        parsedCode.children.map((child: any) => {
+          if(child.type === 'ImportDirective' && child.path){
+            importResult.push(child.path);
+          }
+        });
+      let contractResult: any = [];
+      parsedCode.children.map((child: any) => {
+        if (child.type === "ContractDefinition" && child.name) {
+          contractResult.push(child.name);
         }
       });
        res.send({
